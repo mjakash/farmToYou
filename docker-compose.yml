@@ -1,0 +1,109 @@
+services:
+  # 1. Our PostgreSQL Database
+  db:
+    image: postgres:14-alpine
+    container_name: farm-postgres-db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password123
+      POSTGRES_DB: postgres
+    volumes:
+      - ./init-db:/docker-entrypoint-initdb.d
+      - postgres-data:/var/lib/postgresql/data
+
+  # 2. Our User Service
+  user-service:
+    container_name: farm-user-service
+    build: ./user-service
+    ports:
+      - "8081:8081"
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/user_service_db
+      DB_USER: admin
+      DB_PASSWORD: password123
+    depends_on:
+      - db
+
+  # 3. Our Product Service
+  product-service:
+    container_name: farm-product-service
+    build: ./product-service
+    ports:
+      - "8082:8082"
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/product_service_db
+      DB_USER: admin
+      DB_PASSWORD: password123
+    depends_on:
+      - db
+
+  # 4. Our Inventory Service
+  inventory-service:
+    container_name: farm-inventory-service
+    build: ./inventory-service
+    ports:
+      - "8083:8083"
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/inventory_service_db
+      DB_USER: admin
+      DB_PASSWORD: password123
+    depends_on:
+      - db
+
+  # 5. Our Mock Payment Service
+  payment-service:
+    container_name: farm-payment-service
+    build: ./payment-service
+    ports:
+      - "8084:8084"
+
+  # 6. Our Order Service
+  order-service:
+    container_name: farm-order-service
+    build: ./order-service
+    ports:
+      - "8085:8085"
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/order_service_db
+      DB_USER: admin
+      DB_PASSWORD: password123
+      PRODUCT_SERVICE_URL: http://product-service:8082
+      INVENTORY_SERVICE_URL: http://inventory-service:8083
+      PAYMENT_SERVICE_URL: http://payment-service:8084
+    depends_on:
+      - db
+      - product-service
+      - inventory-service
+      - payment-service
+
+  # 7. Our Redis Cache
+  redis:
+    image: redis:6-alpine
+    container_name: farm-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+  # 8. Our Delivery Service
+  delivery-service:
+    container_name: farm-delivery-service
+    build: ./delivery-service
+    ports:
+      - "8086:8086"
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/delivery_service_db
+      DB_USER: admin
+      DB_PASSWORD: password123
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      - db
+      - redis
+
+# Define the named volumes for persistent data
+volumes:
+  postgres-data:
+  redis-data:   
