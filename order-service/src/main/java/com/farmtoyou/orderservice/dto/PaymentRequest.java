@@ -5,7 +5,7 @@ import lombok.Getter;
 import java.math.BigDecimal;
 
 @Getter
-@Builder // Builder pattern is nice for this
+@Builder 
 public class PaymentRequest {
     private Long orderId;
     private BigDecimal amount;

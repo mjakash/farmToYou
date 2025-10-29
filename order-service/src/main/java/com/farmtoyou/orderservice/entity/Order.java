@@ -5,7 +5,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -15,47 +17,60 @@ import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.JoinColumn;
 import lombok.Data;
 
 @Entity
 @Table(name = "orders")
 @Data
 public class Order {
+
 	@Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-    @Column(nullable = false)
-    private Long customerId;
+	@Column(nullable = false)
+	private Long customerId;
 
-    @Column(nullable = false)
-    private Long farmerId; // We'll assume one order goes to one farmer
+	@Column(nullable = false)
+	private Long farmerId;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private OrderStatus status;
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false)
+	private OrderStatus status;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private DeliveryChoice deliveryChoice;
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false)
+	private DeliveryChoice deliveryChoice;
 
-    @Column(nullable = false)
-    private BigDecimal totalPrice;
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false)
+	private PaymentMethod paymentMethod;
 
-    @Column(nullable = false)
-    private BigDecimal totalWeight; // For our 5kg rule
+	@Column(columnDefinition = "TIMESTAMP")
+	private LocalDateTime acceptanceDeadline;
 
-    @Column(columnDefinition = "TIMESTAMP")
-    private LocalDateTime createdAt;
+	@Column(nullable = false)
+	private BigDecimal totalPrice;
 
-    // This links the order to its items
-    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
-    private List<OrderItem> items;
+	@Column(nullable = false)
+	private BigDecimal totalWeight;
 
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        status = OrderStatus.PENDING; // Default status
-        deliveryChoice = DeliveryChoice.PENDING; // Default choice
-    }
+	@Column(columnDefinition = "TIMESTAMP")
+	private LocalDateTime createdAt;
+
+	@ElementCollection
+	@CollectionTable(name = "order_image_urls", joinColumns = @JoinColumn(name = "order_id"))
+	@Column(name = "image_url")
+	private List<String> imageUrls;
+
+	@OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
+	private List<OrderItem> items;
+
+	@PrePersist
+	protected void onCreate() {
+		createdAt = LocalDateTime.now();
+		deliveryChoice = DeliveryChoice.PENDING;
+	}
+
 }

@@ -8,4 +8,5 @@ psql -v ON_ERROR_STOP=1 --username "$POSTGRES_USER" --dbname "$POSTGRES_DB" <<-E
     CREATE DATABASE order_service_db;
     CREATE DATABASE inventory_service_db;
     CREATE DATABASE delivery_service_db;
+    CREATE DATABASE rating_service_db;
 EOSQL

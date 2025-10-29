@@ -102,6 +102,17 @@ services:
     depends_on:
       - db
       - redis
+  rating-service:
+    container_name: farm-rating-service
+    build: ./rating-service
+    ports:
+      - "8087:8087"
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/rating_service_db
+      DB_USER: admin
+      DB_PASSWORD: password123
+    depends_on:
+      - db
 
 # Define the named volumes for persistent data
 volumes:
