@@ -15,4 +15,5 @@ public class DeliveryResponse {
     private Long deliveryPersonId;
     private DeliveryStatus status;
     private LocalDateTime assignedAt;
+    private LocalDateTime deliveredAt;
 }

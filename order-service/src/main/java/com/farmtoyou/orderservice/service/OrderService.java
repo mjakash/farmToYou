@@ -15,4 +15,6 @@ public interface OrderService {
 	OrderResponse packageOrder(Long orderId, PackageOrderRequest packageRequest);
 
 	OrderResponse dispatchOrder(Long orderId, DispatchRequest dispatchRequest);
+
+	OrderResponse completeOrder(Long orderId);
 }

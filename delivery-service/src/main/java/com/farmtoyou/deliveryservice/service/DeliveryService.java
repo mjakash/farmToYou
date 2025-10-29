@@ -9,6 +9,7 @@ public interface DeliveryService {
     // --- PostgreSQL Operations ---
     DeliveryResponse createOrUpdateAssignment(DeliveryAssignmentRequest request);
     DeliveryResponse getDeliveryByOrderId(Long orderId);
+    DeliveryResponse completeDelivery(Long orderId);
 
     // --- Redis Operations ---
     void updateLocation(LocationUpdateRequest request);

@@ -13,39 +13,45 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/delivery")
 public class DeliveryController {
 
-    private final DeliveryService deliveryService;
+	private final DeliveryService deliveryService;
 
-    public DeliveryController(DeliveryService deliveryService) {
-        this.deliveryService = deliveryService;
-    }
+	public DeliveryController(DeliveryService deliveryService) {
+		this.deliveryService = deliveryService;
+	}
 
-    // --- Assignment Endpoint ---
+	// --- Assignment Endpoint ---
 
-    // POST http://localhost:8086/api/delivery/assign
-    @PostMapping("/assign")
-    public ResponseEntity<DeliveryResponse> assignDelivery(@RequestBody DeliveryAssignmentRequest request) {
-        DeliveryResponse response = deliveryService.createOrUpdateAssignment(request);
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
-    }
-    
-    // GET http://localhost:8086/api/delivery/order/1
-    @GetMapping("/order/{orderId}")
-    public ResponseEntity<DeliveryResponse> getDeliveryStatus(@PathVariable Long orderId) {
-        return ResponseEntity.ok(deliveryService.getDeliveryByOrderId(orderId));
-    }
+	// POST http://localhost:8086/api/delivery/assign
+	@PostMapping("/assign")
+	public ResponseEntity<DeliveryResponse> assignDelivery(@RequestBody DeliveryAssignmentRequest request) {
+		DeliveryResponse response = deliveryService.createOrUpdateAssignment(request);
+		return new ResponseEntity<>(response, HttpStatus.CREATED);
+	}
 
-    // --- Location Endpoints ---
+	// GET http://localhost:8086/api/delivery/order/1
+	@GetMapping("/order/{orderId}")
+	public ResponseEntity<DeliveryResponse> getDeliveryStatus(@PathVariable Long orderId) {
+		return ResponseEntity.ok(deliveryService.getDeliveryByOrderId(orderId));
+	}
 
-    // POST http://localhost:8086/api/delivery/location
-    @PostMapping("/location")
-    public ResponseEntity<Void> updateLocation(@RequestBody LocationUpdateRequest request) {
-        deliveryService.updateLocation(request);
-        return ResponseEntity.ok().build();
-    }
+	// --- Location Endpoints ---
 
-    // GET http://localhost:8086/api/delivery/location/1
-    @GetMapping("/location/{orderId}")
-    public ResponseEntity<LocationResponse> getLocation(@PathVariable Long orderId) {
-        return ResponseEntity.ok(deliveryService.getLocation(orderId));
-    }
+	// POST http://localhost:8086/api/delivery/location
+	@PostMapping("/location")
+	public ResponseEntity<Void> updateLocation(@RequestBody LocationUpdateRequest request) {
+		deliveryService.updateLocation(request);
+		return ResponseEntity.ok().build();
+	}
+
+	// GET http://localhost:8086/api/delivery/location/1
+	@GetMapping("/location/{orderId}")
+	public ResponseEntity<LocationResponse> getLocation(@PathVariable Long orderId) {
+		return ResponseEntity.ok(deliveryService.getLocation(orderId));
+	}
+
+	@PostMapping("/{orderId}/complete")
+	public ResponseEntity<DeliveryResponse> completeDelivery(@PathVariable Long orderId) {
+		DeliveryResponse response = deliveryService.completeDelivery(orderId);
+		return ResponseEntity.ok(response);
+	}
 }

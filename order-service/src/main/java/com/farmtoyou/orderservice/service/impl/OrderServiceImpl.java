@@ -277,4 +277,29 @@ public class OrderServiceImpl implements OrderService {
 		response.setCreatedAt(order.getCreatedAt());
 		return response;
 	}
+
+	@Override
+	@Transactional
+	public OrderResponse completeOrder(Long orderId) {
+		Order order = findOrderByIdOrThrow(orderId);
+
+		if (order.getStatus() != OrderStatus.OUT_FOR_DELIVERY) {
+			throw new OrderValidationException(
+					"Order must be OUT_FOR_DELIVERY to be completed. Current status: " + order.getStatus());
+		}
+
+		order.setStatus(OrderStatus.DELIVERED);
+		Order savedOrder = orderRepository.save(order);
+
+		// For COD, this is where we would also trigger a notification
+		// to the farmer that payment has been collected and will be settled.
+		if (order.getPaymentMethod() == PaymentMethod.CASH_ON_DELIVERY) {
+			System.out.println("LOG: Payment collected for COD order: " + orderId);
+			// In a real system, this would trigger a financial settlement event.
+		}
+
+		OrderResponse response = mapToOrderResponse(savedOrder);
+		response.setMessage("Order marked as DELIVERED.");
+		return response;
+	}
 }
