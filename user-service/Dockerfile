@@ -17,7 +17,7 @@ RUN mvn package -DskipTests
 # --- Stage 2: Run Stage ---
 # Use a slim OpenJDK 21 image for a smaller, more secure final container
 # This must also be updated to match the build version
-FROM openjdk:21-slim
+FROM eclipse-temurin:21-jre-alpine
 
 # Set the working directory
 WORKDIR /app

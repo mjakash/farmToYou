@@ -7,7 +7,7 @@ COPY src ./src
 RUN mvn package -DskipTests
 
 # --- Stage 2: Run Stage ---
-FROM openjdk:21-slim
+FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
 # --- IMPORTANT: Change this .jar file name ---
