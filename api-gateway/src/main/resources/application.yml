@@ -1,0 +1,89 @@
+server:
+  # The gateway will run on port 8080, the standard entry point
+  port: 8080
+
+# --- Environment Variable Placeholders ---
+# These URLs will be injected by your docker-compose.yml file
+service:
+  url:
+    user: ${USER_SERVICE_URL:http://localhost:8081}
+    product: ${PRODUCT_SERVICE_URL:http://localhost:8082}
+    inventory: ${INVENTORY_SERVICE_URL:http://localhost:8083}
+    order: ${ORDER_SERVICE_URL:http://localhost:8085}
+    delivery: ${DELIVERY_SERVICE_URL:http://localhost:8086}
+    rating: ${RATING_SERVICE_URL:http://localhost:8087}
+
+# This secret must match the one in your user-service
+jwt:
+  secret: ${JWT_SECRET:Y2hhbmdlLXRoaXMtc2VjcmV0LWZvci1wcm9kdWN0aW9uLWVudmlyb25tZW50LWl0LXN0b3JlLXNlY3VyZWx5Cg==}
+
+spring:
+  # This sets the application name
+  application:
+    name: api-gateway
+
+  # --- Spring Cloud Gateway Route Definitions ---
+  cloud:
+    compatibility-verifier:
+      enabled: false
+    gateway:
+      routes:
+        # 1. User Service Routes (Login/Register)
+        - id: user-service-route
+          uri: ${service.url.user}
+          predicates:
+            - Path=/api/users/**
+          filters:
+            - AuthenticationFilter
+        
+
+        # 2. Product Service Routes
+        - id: product-service-route
+          uri: ${service.url.product}
+          predicates:
+            - Path=/api/products/**
+          filters:
+            - AuthenticationFilter
+       
+
+        # 3. Inventory Service Routes
+        - id: inventory-service-route
+          uri: ${service.url.inventory}
+          predicates:
+            - Path=/api/inventory/**
+          filters:
+            - AuthenticationFilter
+        
+
+        # 4. Order Service Routes
+        - id: order-service-route
+          uri: ${service.url.order}
+          predicates:
+            - Path=/api/orders/**
+          filters:
+            - AuthenticationFilter
+
+        # 5. Delivery Service Routes
+        - id: delivery-service-route
+          uri: ${service.url.delivery}
+          predicates:
+            - Path=/api/delivery/**
+          filters:
+            - AuthenticationFilter
+        
+
+        # 6. Rating Service Routes
+        - id: rating-service-route
+          uri: ${service.url.rating}
+          predicates:
+            - Path=/api/ratings/**
+          filters:
+            - AuthenticationFilter
+
+
+# --- Actuator Settings ---
+management:
+  endpoints:
+    web:
+      exposure:
+        include: gateway,health

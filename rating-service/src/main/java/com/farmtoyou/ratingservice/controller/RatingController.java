@@ -7,33 +7,37 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.file.AccessDeniedException;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/ratings")
 public class RatingController {
 
-    private final RatingService ratingService;
+	private final RatingService ratingService;
 
-    public RatingController(RatingService ratingService) {
-        this.ratingService = ratingService;
-    }
+	public RatingController(RatingService ratingService) {
+		this.ratingService = ratingService;
+	}
 
-    @PostMapping
-    public ResponseEntity<RatingResponse> createRating(@RequestBody RatingRequest request) {
-        RatingResponse response = ratingService.createRating(request);
-        return new ResponseEntity<>(response, HttpStatus.CREATED);
-    }
+	@PostMapping
+	public ResponseEntity<RatingResponse> createRating(@RequestBody RatingRequest request,
+			@RequestHeader("X-User-Id") Long userId, @RequestHeader("X-User-Role") String userRole) throws AccessDeniedException {
 
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<List<RatingResponse>> getRatingsForUser(@PathVariable Long userId) {
-        List<RatingResponse> responses = ratingService.getRatingsForUser(userId);
-        return ResponseEntity.ok(responses);
-    }
+		RatingResponse response = ratingService.createRating(request, userId, userRole);
+		return new ResponseEntity<>(response, HttpStatus.CREATED);
+	}
 
-    @GetMapping("/order/{orderId}")
-    public ResponseEntity<List<RatingResponse>> getRatingsForOrder(@PathVariable Long orderId) {
-        List<RatingResponse> responses = ratingService.getRatingsForOrder(orderId);
-        return ResponseEntity.ok(responses);
-    }
+
+	@GetMapping("/user/{userId}")
+	public ResponseEntity<List<RatingResponse>> getRatingsForUser(@PathVariable Long userId) {
+		List<RatingResponse> responses = ratingService.getRatingsForUser(userId);
+		return ResponseEntity.ok(responses);
+	}
+
+	@GetMapping("/order/{orderId}")
+	public ResponseEntity<List<RatingResponse>> getRatingsForOrder(@PathVariable Long orderId) {
+		List<RatingResponse> responses = ratingService.getRatingsForOrder(orderId);
+		return ResponseEntity.ok(responses);
+	}
 }

@@ -6,7 +6,10 @@ import com.farmtoyou.ratingservice.entity.Rating;
 import com.farmtoyou.ratingservice.repository.RatingRepository;
 import com.farmtoyou.ratingservice.service.RatingService;
 import org.springframework.stereotype.Service;
-
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.reactive.function.client.WebClient;
+import java.util.Objects;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -14,16 +17,30 @@ import java.util.stream.Collectors;
 public class RatingServiceImpl implements RatingService {
 
     private final RatingRepository ratingRepository;
+    private final WebClient.Builder webClientBuilder;
+    private final String orderServiceUrl;
 
-    public RatingServiceImpl(RatingRepository ratingRepository) {
+    // This is the only constructor that should be in this file
+    public RatingServiceImpl(RatingRepository ratingRepository,
+                             WebClient.Builder webClientBuilder,
+                             @Value("${order.service.url}") String orderServiceUrl) {
         this.ratingRepository = ratingRepository;
+        this.webClientBuilder = webClientBuilder;
+        this.orderServiceUrl = orderServiceUrl + "/api/orders";
     }
 
     @Override
-    public RatingResponse createRating(RatingRequest request) {
+    public RatingResponse createRating(RatingRequest request, Long userId, String userRole) {
         if (request.getScore() < 1 || request.getScore() > 5) {
             throw new IllegalArgumentException("Rating score must be between 1 and 5.");
         }
+
+        // Authorization check
+        if (!Objects.equals(request.getRatingSubmitterId(), userId)) {
+            throw new AccessDeniedException("You can only submit ratings as yourself.");
+        }
+        
+        // (We can add more checks here later by calling orderServiceUrl)
 
         Rating rating = new Rating();
         rating.setOrderId(request.getOrderId());
@@ -41,14 +58,14 @@ public class RatingServiceImpl implements RatingService {
     public List<RatingResponse> getRatingsForUser(Long userId) {
         return ratingRepository.findByRatingSubjectId(userId).stream()
                 .map(this::mapToResponse)
-                .toList();
+                .collect(Collectors.toList());
     }
 
     @Override
     public List<RatingResponse> getRatingsForOrder(Long orderId) {
         return ratingRepository.findByOrderId(orderId).stream()
                 .map(this::mapToResponse)
-                .toList();
+                .collect(Collectors.toList());
     }
 
     private RatingResponse mapToResponse(Rating rating) {

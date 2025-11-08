@@ -10,33 +10,39 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import lombok.Data;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
-@Table(name="products")
-@Data
+@Table(name = "products")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Product {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
-	
+
 	@Column(nullable = false)
 	private String name;
-	
+
 	private String description;
-	
+
 	@Column(nullable = false)
 	private BigDecimal price;
-	
+
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
 	private PriceUnit unit;
-	
+
 	@Column(nullable = false)
 	private Long farmerId;
-	
+
 	@Column(nullable = false)
-    private String imageUrl;
-	
+	private String imageUrl;
+
 }

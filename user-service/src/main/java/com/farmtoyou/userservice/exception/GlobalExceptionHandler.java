@@ -32,11 +32,27 @@ public class GlobalExceptionHandler {
 	}
 
 	/**
+	 * Handles failed login attempts
+	 * 
+	 * @param ex
+	 * @return 401 Unauthorized response
+	 */
+	@ExceptionHandler(BadCredentialsException.class)
+	public ResponseEntity<?> handleBadCredentialsException(BadCredentialsException ex) {
+		Map<String, Object> body = new HashMap<>();
+		body.put("timestamp", LocalDateTime.now());
+		body.put("status", HttpStatus.UNAUTHORIZED.value());
+		body.put("error", "Unauthorized");
+		body.put("message", "Invalid email or password");
+
+		return new ResponseEntity<>(body, HttpStatus.UNAUTHORIZED);
+	}
+
+	/**
 	 * 
 	 * @param ex
 	 * @param request
-	 * @return
-	 * This will handle rest of our exceptions
+	 * @return This will handle rest of our exceptions
 	 */
 	@ExceptionHandler(Exception.class)
 	public ResponseEntity<?> handleGlobalException(Exception ex, WebRequest request) {

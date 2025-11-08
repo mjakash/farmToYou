@@ -9,11 +9,12 @@ import lombok.Data;
 
 @Data
 public class OrderResponse {
-    private Long id;
-    private Long customerId;
-    private OrderStatus status;
-    private BigDecimal totalPrice;
-    private BigDecimal totalWeight;
-    private LocalDateTime createdAt;
-    private String message;
+	private Long id;
+	private Long customerId;
+	private OrderStatus status;
+	private BigDecimal totalPrice;
+	private BigDecimal totalWeight;
+	private LocalDateTime createdAt;
+	private String deliveryAddress;
+	private String message;
 }

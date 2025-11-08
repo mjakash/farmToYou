@@ -19,6 +19,12 @@ public class OrderController {
 		this.orderService = orderService;
 	}
 
+	@GetMapping("/{orderId}")
+	public ResponseEntity<OrderResponse> getOrderById(@PathVariable Long orderId) {
+		OrderResponse response = orderService.getOrderById(orderId);
+		return ResponseEntity.ok(response);
+	}
+
 	@PostMapping
 	public ResponseEntity<OrderResponse> createOrder(@RequestBody OrderRequest orderRequest) {
 		OrderResponse response = orderService.createOrder(orderRequest);

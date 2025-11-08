@@ -52,6 +52,7 @@ public class OrderServiceImpl implements OrderService {
 		newOrder.setCustomerId(orderRequest.getCustomerId());
 		newOrder.setFarmerId(orderRequest.getFarmerId());
 		newOrder.setPaymentMethod(orderRequest.getPaymentMethod());
+		newOrder.setDeliveryAddress(orderRequest.getDeliveryAddress());
 
 		BigDecimal totalPrice = BigDecimal.ZERO;
 		BigDecimal totalWeight = BigDecimal.ZERO;
@@ -131,6 +132,12 @@ public class OrderServiceImpl implements OrderService {
 		response.setMessage("Order placed successfully! Waiting for farmer acceptance.");
 
 		return response;
+	}
+
+	@Override
+	public OrderResponse getOrderById(Long orderId) {
+		Order order = findOrderByIdOrThrow(orderId);
+		return mapToOrderResponse(order);
 	}
 
 	// --- NEW METHOD: ACCEPT ORDER ---
@@ -275,6 +282,7 @@ public class OrderServiceImpl implements OrderService {
 		response.setTotalPrice(order.getTotalPrice());
 		response.setTotalWeight(order.getTotalWeight());
 		response.setCreatedAt(order.getCreatedAt());
+		response.setDeliveryAddress(order.getDeliveryAddress());
 		return response;
 	}
 
@@ -302,4 +310,5 @@ public class OrderServiceImpl implements OrderService {
 		response.setMessage("Order marked as DELIVERED.");
 		return response;
 	}
+
 }

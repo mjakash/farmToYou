@@ -3,6 +3,8 @@ package com.farmtoyou.orderservice.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
+
 import java.math.BigDecimal;
 
 @Entity
@@ -11,21 +13,22 @@ import java.math.BigDecimal;
 @Setter
 public class OrderItem {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-    @Column(nullable = false)
-    private Long productId;
+	@Column(nullable = false)
+	private Long productId;
 
-    @Column(nullable = false)
-    private BigDecimal quantity;
+	@Column(nullable = false)
+	private BigDecimal quantity;
 
-    @Column(nullable = false)
-    private BigDecimal priceAtTimeOfOrder; // Price when the order was placed
+	@Column(nullable = false)
+	private BigDecimal priceAtTimeOfOrder; // Price when the order was placed
 
-    // This links the item back to its order
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id")
-    private Order order;
+	// This links the item back to its order
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "order_id")
+	@ToString.Exclude
+	private Order order;
 }

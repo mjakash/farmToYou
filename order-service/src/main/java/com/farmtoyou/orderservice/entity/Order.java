@@ -14,15 +14,22 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
-import jakarta.persistence.JoinColumn;
-import lombok.Data;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 
 @Entity
 @Table(name = "orders")
-@Data
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Order {
 
 	@Id
@@ -38,6 +45,9 @@ public class Order {
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
 	private OrderStatus status;
+
+	@Column(nullable = true)
+	private String deliveryAddress;
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
@@ -65,6 +75,7 @@ public class Order {
 	private List<String> imageUrls;
 
 	@OneToMany(mappedBy = "order", cascade = CascadeType.ALL)
+	@ToString.Exclude
 	private List<OrderItem> items;
 
 	@PrePersist

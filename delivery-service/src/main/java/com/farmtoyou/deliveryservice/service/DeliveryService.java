@@ -1,17 +1,17 @@
 package com.farmtoyou.deliveryservice.service;
 
-import com.farmtoyou.deliveryservice.dto.DeliveryAssignmentRequest;
-import com.farmtoyou.deliveryservice.dto.DeliveryResponse;
-import com.farmtoyou.deliveryservice.dto.LocationUpdateRequest;
-import com.farmtoyou.deliveryservice.dto.LocationResponse;
+import java.nio.file.AccessDeniedException;
+
+import com.farmtoyou.deliveryservice.dto.*;
 
 public interface DeliveryService {
-    // --- PostgreSQL Operations ---
-    DeliveryResponse createOrUpdateAssignment(DeliveryAssignmentRequest request);
-    DeliveryResponse getDeliveryByOrderId(Long orderId);
-    DeliveryResponse completeDelivery(Long orderId);
+	DeliveryResponse createOrUpdateAssignment(DeliveryAssignmentRequest request);
 
-    // --- Redis Operations ---
-    void updateLocation(LocationUpdateRequest request);
-    LocationResponse getLocation(Long orderId);
+	DeliveryResponse getDeliveryByOrderId(Long orderId);
+
+	CustomerDeliveryView getCustomerView(Long orderId, String customerEmail) throws AccessDeniedException;
+
+	AgentDeliveryView getAgentView(Long orderId, String agentEmail) throws AccessDeniedException;
+
+	DeliveryResponse completeDelivery(Long orderId, Long userId, String userRole) throws AccessDeniedException;
 }
