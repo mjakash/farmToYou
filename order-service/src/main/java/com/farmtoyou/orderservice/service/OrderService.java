@@ -1,5 +1,7 @@
 package com.farmtoyou.orderservice.service;
 
+import java.nio.file.AccessDeniedException;
+
 import com.farmtoyou.orderservice.dto.DispatchRequest;
 import com.farmtoyou.orderservice.dto.OrderRequest;
 import com.farmtoyou.orderservice.dto.OrderResponse;
@@ -14,9 +16,10 @@ public interface OrderService {
 
 	OrderResponse packageOrder(Long orderId, PackageOrderRequest packageRequest);
 
-	OrderResponse dispatchOrder(Long orderId, DispatchRequest dispatchRequest);
+	OrderResponse dispatchOrder(Long orderId, DispatchRequest dispatchRequest, Long farmerId) throws AccessDeniedException;
 
-	OrderResponse completeOrder(Long orderId);
+	// Update this
+	OrderResponse completeOrder(Long orderId) throws AccessDeniedException;
 
 	OrderResponse getOrderById(Long orderId);
 }

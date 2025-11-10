@@ -16,9 +16,11 @@ import org.springframework.scheduling.annotation.Scheduled; // Import this
 import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
+import java.nio.file.AccessDeniedException;
 import java.time.LocalDateTime; // Import this
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class OrderServiceImpl implements OrderService {
@@ -29,19 +31,19 @@ public class OrderServiceImpl implements OrderService {
 	private final String productServiceUrl;
 	private final String inventoryServiceUrl;
 	private final String paymentServiceUrl;
-	private final String deliveryServiceUrl; // --- NEW FIELD ---
+	private final String deliveryServiceUrl;
 
 	public OrderServiceImpl(OrderRepository orderRepository, WebClient.Builder webClientBuilder,
 			@Value("${product.service.url}") String productServiceUrl,
 			@Value("${inventory.service.url}") String inventoryServiceUrl,
 			@Value("${payment.service.url}") String paymentServiceUrl,
-			@Value("${delivery.service.url}") String deliveryServiceUrl) { // --- ADD TO CONSTRUCTOR ---
+			@Value("${delivery.service.url}") String deliveryServiceUrl) {
 		this.orderRepository = orderRepository;
 		this.webClientBuilder = webClientBuilder;
 		this.productServiceUrl = productServiceUrl + "/api/products";
 		this.inventoryServiceUrl = inventoryServiceUrl + "/api/inventory";
 		this.paymentServiceUrl = paymentServiceUrl + "/api/payments";
-		this.deliveryServiceUrl = deliveryServiceUrl + "/api/delivery"; // --- SET URL ---
+		this.deliveryServiceUrl = deliveryServiceUrl + "/api/delivery";
 	}
 
 	@Override
@@ -185,6 +187,43 @@ public class OrderServiceImpl implements OrderService {
 
 	@Override
 	@Transactional
+	public OrderResponse dispatchOrder(Long orderId, DispatchRequest dispatchRequest, Long farmerId)
+			throws AccessDeniedException {
+		Order order = findOrderByIdOrThrow(orderId);
+
+		// Authorization: Only the farmer of this order can dispatch it
+		if (!Objects.equals(order.getFarmerId(), farmerId)) {
+			throw new AccessDeniedException("You are not authorized to dispatch this order.");
+		}
+
+		// Logic: Must be packaged to be dispatched
+		if (order.getStatus() != OrderStatus.PACKAGED) {
+			throw new OrderValidationException("Order must be PACKAGED to be dispatched.");
+		}
+
+		// Call Delivery Service to create the assignment
+		DeliveryAssignmentRequest assignmentRequest = DeliveryAssignmentRequest.builder()
+				.deliveryPersonId(dispatchRequest.getDeliveryPersonId()).build();
+
+		try {
+			webClientBuilder.build().post().uri(deliveryServiceUrl + "/assign/" + orderId)
+					.body(Mono.just(assignmentRequest), DeliveryAssignmentRequest.class).retrieve()
+					.bodyToMono(Void.class).block();
+		} catch (Exception e) {
+			throw new RuntimeException("Failed to assign order to delivery service: " + e.getMessage());
+		}
+
+		order.setDeliveryChoice(dispatchRequest.getDeliveryChoice());
+		order.setStatus(OrderStatus.OUT_FOR_DELIVERY);
+		Order savedOrder = orderRepository.save(order);
+
+		OrderResponse response = mapToOrderResponse(savedOrder);
+		response.setMessage("Order dispatched and assigned for delivery.");
+		return response;
+	}
+
+	@Override
+	@Transactional
 	public OrderResponse packageOrder(Long orderId, PackageOrderRequest packageRequest) {
 		Order order = findOrderByIdOrThrow(orderId);
 
@@ -203,50 +242,6 @@ public class OrderServiceImpl implements OrderService {
 
 		OrderResponse response = mapToOrderResponse(savedOrder);
 		response.setMessage("Order packaged successfully with " + savedOrder.getImageUrls().size() + " photo(s).");
-		return response;
-	}
-
-	@Override
-	@Transactional
-	public OrderResponse dispatchOrder(Long orderId, DispatchRequest dispatchRequest) {
-		Order order = findOrderByIdOrThrow(orderId);
-
-		// A farmer can dispatch an order they have confirmed (or already packaged)
-		if (order.getStatus() != OrderStatus.FARMER_CONFIRMED && order.getStatus() != OrderStatus.PACKAGED) {
-			throw new OrderValidationException(
-					"Order cannot be dispatched. Must be CONFIRMED or PACKAGED. Current status: " + order.getStatus());
-		}
-
-		if (order.getStatus() == OrderStatus.FARMER_CONFIRMED) {
-			throw new OrderValidationException("Order must be packaged before it can be dispatched.");
-		}
-
-		// 1. Prepare request for Delivery Service
-		DeliveryAssignmentRequest assignmentRequest = DeliveryAssignmentRequest.builder().orderId(orderId)
-				.deliveryPersonId(dispatchRequest.getDeliveryPersonId()).build();
-
-		// 2. Call Delivery Service to create the assignment
-		try {
-			DeliveryAssignmentResponse deliveryResponse = webClientBuilder.build().post()
-					.uri(deliveryServiceUrl + "/assign")
-					.body(Mono.just(assignmentRequest), DeliveryAssignmentRequest.class).retrieve()
-					.bodyToMono(DeliveryAssignmentResponse.class).block();
-
-			if (deliveryResponse == null || !"ASSIGNED".equals(deliveryResponse.getStatus())) {
-				throw new OrderValidationException("Failed to assign order to delivery service.");
-			}
-
-		} catch (Exception e) {
-			throw new OrderValidationException("Error calling delivery service: " + e.getMessage());
-		}
-
-		// 3. Update our local order status
-		order.setDeliveryChoice(dispatchRequest.getDeliveryChoice());
-		order.setStatus(OrderStatus.OUT_FOR_DELIVERY);
-		Order savedOrder = orderRepository.save(order);
-
-		OrderResponse response = mapToOrderResponse(savedOrder);
-		response.setMessage("Order is now " + OrderStatus.OUT_FOR_DELIVERY.toString());
 		return response;
 	}
 
@@ -288,12 +283,16 @@ public class OrderServiceImpl implements OrderService {
 
 	@Override
 	@Transactional
-	public OrderResponse completeOrder(Long orderId) {
+	public OrderResponse completeOrder(Long orderId) throws AccessDeniedException {
 		Order order = findOrderByIdOrThrow(orderId);
 
 		if (order.getStatus() != OrderStatus.OUT_FOR_DELIVERY) {
+			throw new OrderValidationException("Order must be OUT_FOR_DELIVERY to be completed.");
+		}
+
+		if (order.getStatus() != OrderStatus.PACKAGED) {
 			throw new OrderValidationException(
-					"Order must be OUT_FOR_DELIVERY to be completed. Current status: " + order.getStatus());
+					"Order must be PACKAGED to be completed. Current status: " + order.getStatus());
 		}
 
 		order.setStatus(OrderStatus.DELIVERED);

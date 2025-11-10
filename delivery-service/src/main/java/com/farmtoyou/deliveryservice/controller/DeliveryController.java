@@ -28,57 +28,36 @@ public class DeliveryController {
 		this.deliveryService = deliveryService;
 	}
 
-	// --- Assignment Endpoint ---
-	
-	@PostMapping("/{orderId}/complete")
-    public ResponseEntity<DeliveryResponse> completeDelivery(
-            @PathVariable Long orderId,
-            @RequestHeader("X-User-Id") Long userId,
-			@RequestHeader("X-User-Role") String userRole) throws AccessDeniedException {
-        
-        DeliveryResponse response = deliveryService.completeDelivery(orderId, userId, userRole);
-        return ResponseEntity.ok(response);
-    }
-
+	// This is the "smart" endpoint for both customer and agent
 	@GetMapping("/view/{orderId}")
-	public ResponseEntity<?> getDeliveryView(@PathVariable Long orderId,
-			@RequestHeader("X-User-Email") String userEmail) {
+	public ResponseEntity<?> getDeliveryView(@PathVariable Long orderId, @RequestHeader("X-User-Id") Long userId,
+			@RequestHeader("X-User-Role") String userRole) throws AccessDeniedException {
 
-		// This is a simplified check. We'd normally check the user's role.
-		// For now, we'll assume if the service call works, the role is correct.
-
-		try {
-			// Try to get the view as if the user is a customer
-			CustomerDeliveryView customerView = deliveryService.getCustomerView(orderId, userEmail);
-			return ResponseEntity.ok(customerView);
-		} catch (Exception customerException) {
-			// If that fails, try to get the view as if the user is an agent
-			try {
-				AgentDeliveryView agentView = deliveryService.getAgentView(orderId, userEmail);
-				return ResponseEntity.ok(agentView);
-			} catch (Exception agentException) {
-				// If both fail, the user is not authorized
-				return new ResponseEntity<>("Unauthorized to view this order's delivery details.",
-						HttpStatus.UNAUTHORIZED);
-			}
+		if ("CUSTOMER".equals(userRole)) {
+			CustomerDeliveryView view = deliveryService.getCustomerView(orderId, userId);
+			return ResponseEntity.ok(view);
+		} else if ("FARMER".equals(userRole) || "DELIVERY_AGENT".equals(userRole)) {
+			AgentDeliveryView view = deliveryService.getAgentView(orderId, userId);
+			return ResponseEntity.ok(view);
+		} else {
+			return new ResponseEntity<>("Invalid user role", HttpStatus.FORBIDDEN);
 		}
 	}
 
-	// POST http://localhost:8086/api/delivery/assign
-	@PostMapping("/assign")
-	public ResponseEntity<DeliveryResponse> assignDelivery(@RequestBody DeliveryAssignmentRequest request) {
-		DeliveryResponse response = deliveryService.createOrUpdateAssignment(request);
+	// This is called by the order-service to create the delivery
+	@PostMapping("/assign/{orderId}")
+	public ResponseEntity<DeliveryResponse> assignDelivery(@PathVariable Long orderId,
+			@RequestBody DeliveryAssignmentRequest request) {
+		DeliveryResponse response = deliveryService.createAssignment(request, orderId);
 		return new ResponseEntity<>(response, HttpStatus.CREATED);
 	}
 
-	// GET http://localhost:8086/api/delivery/order/1
-	@GetMapping("/order/{orderId}")
-	public ResponseEntity<DeliveryResponse> getDeliveryStatus(@PathVariable Long orderId) {
-		return ResponseEntity.ok(deliveryService.getDeliveryByOrderId(orderId));
+	// This is called by the agent/farmer to complete the delivery
+	@PostMapping("/{orderId}/complete")
+	public ResponseEntity<DeliveryResponse> completeDelivery(@PathVariable Long orderId,
+			@RequestHeader("X-User-Id") Long userId, @RequestHeader("X-User-Role") String userRole) throws AccessDeniedException {
+
+		DeliveryResponse response = deliveryService.completeDelivery(orderId, userId, userRole);
+		return ResponseEntity.ok(response);
 	}
-
-	// --- Location Endpoints ---
-
-
-
 }

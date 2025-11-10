@@ -93,7 +93,6 @@ services:
       DB_PASSWORD: password123
       PRODUCT_SERVICE_URL: http://product-service:8082
       INVENTORY_SERVICE_URL: http://inventory-service:8083
-      # PAYMENT_SERVICE_URL: http://payment-service:8084
       DELIVERY_SERVICE_URL: http://delivery-service:8086
     depends_on:
       - db
@@ -106,15 +105,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
-
-  # # 7. Our Redis Cache
-  # redis:
-  #   image: redis:6-alpine
-  #   container_name: farm-redis
-  #   ports:
-  #     - "6379:6379"
-  #   volumes:
-  #     - redis-data:/data
 
   # 8. Our Delivery Service
   delivery-service:
@@ -129,14 +119,14 @@ services:
       ORDER_SERVICE_URL: http://order-service:8085
       USER_SERVICE_URL: http://user-service:8081
     depends_on:
-      db:
-        condition: service_started
+      - db
+      - order-service
+      - user-service
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8086/actuator/health"]
       interval: 10s
       timeout: 5s
       retries: 10
-
   # 9. Rating Service
   rating-service:
     container_name: farm-rating-service
@@ -149,6 +139,7 @@ services:
       DB_PASSWORD: password123
     depends_on:
       - db
+      - order-service
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8087/actuator/health"]
       interval: 10s
@@ -165,7 +156,6 @@ services:
       USER_SERVICE_URL: http://user-service:8081
       PRODUCT_SERVICE_URL: http://product-service:8082
       INVENTORY_SERVICE_URL: http://inventory-service:8083
-      # PAYMENT_SERVICE_URL: http://payment-service:8084 
       ORDER_SERVICE_URL: http://order-service:8085
       DELIVERY_SERVICE_URL: http://delivery-service:8086
       RATING_SERVICE_URL: http://rating-service:8087
@@ -175,8 +165,8 @@ services:
       - product-service
       - inventory-service
       - order-service
-      - delivery-service
       - rating-service
+      - delivery-service
       # payment-service:
       #   condition: service_healthy
     healthcheck:

@@ -5,15 +5,15 @@ import java.time.LocalDateTime;
 import com.farmtoyou.deliveryservice.entity.DeliveryStatus;
 
 import lombok.Builder;
-import lombok.Getter;
+import lombok.Data;
 
-@Getter
+@Data
 @Builder
 public class DeliveryResponse {
-    private Long id;
-    private Long orderId;
-    private Long deliveryPersonId;
-    private DeliveryStatus status;
-    private LocalDateTime assignedAt;
-    private LocalDateTime deliveredAt;
+	private Long id;
+	private Long orderId;
+	private Long deliveryPersonId;
+	private DeliveryStatus status;
+	private LocalDateTime assignedAt;
+	private LocalDateTime deliveredAt;
 }

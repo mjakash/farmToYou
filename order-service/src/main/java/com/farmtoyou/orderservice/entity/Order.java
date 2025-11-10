@@ -51,11 +51,11 @@ public class Order {
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
-	private DeliveryChoice deliveryChoice;
+	private PaymentMethod paymentMethod;
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
-	private PaymentMethod paymentMethod;
+	private DeliveryChoice deliveryChoice;
 
 	@Column(columnDefinition = "TIMESTAMP")
 	private LocalDateTime acceptanceDeadline;

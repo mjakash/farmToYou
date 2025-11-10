@@ -1,12 +1,13 @@
 package com.farmtoyou.deliveryservice.repository;
 
-import com.farmtoyou.deliveryservice.entity.Delivery;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
+import com.farmtoyou.deliveryservice.entity.Delivery;
 
 @Repository
 public interface DeliveryRepository extends JpaRepository<Delivery, Long> {
-    Optional<Delivery> findByOrderId(Long orderId);
+	Optional<Delivery> findByOrderId(Long orderId);
 }

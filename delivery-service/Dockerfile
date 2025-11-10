@@ -9,11 +9,6 @@ RUN mvn package -DskipTests
 # --- Stage 2: Run Stage ---
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
-
-# --- IMPORTANT: Change this .jar file name ---
-COPY --from=build /app/target/delivery-service-0.0.1-SNAPSHOT.jar delivery-service.jar
-
-# Expose the port for this service
+COPY --from=build /app/target/delivery-service-0.0.1-SNAPSHOT.jar app.jar
 EXPOSE 8086
-
-ENTRYPOINT ["java", "-jar", "delivery-service.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]

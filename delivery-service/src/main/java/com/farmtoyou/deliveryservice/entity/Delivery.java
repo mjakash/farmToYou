@@ -17,27 +17,26 @@ import lombok.Setter;
 
 @Entity
 @Table(name = "deliveries")
-@Getter 
-@Setter 
-@NoArgsConstructor 
+@Getter
+@Setter
+@NoArgsConstructor
 @AllArgsConstructor
 public class Delivery {
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
 
-    // This is the link to the Order
-    @Column(nullable = false, unique = true)
-    private Long orderId;
+	@Column(nullable = false, unique = true)
+	private Long orderId;
 
-    // This is the ID of the person (Farmer or Agent) from the User-Service
-    private Long deliveryPersonId;
+	@Column(nullable = false)
+	private Long deliveryPersonId; // ID from user-service
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private DeliveryStatus status;
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false)
+	private DeliveryStatus status;
 
-    private LocalDateTime assignedAt;
-    private LocalDateTime deliveredAt;
+	private LocalDateTime assignedAt;
+	private LocalDateTime deliveredAt;
 }

@@ -44,8 +44,7 @@ spring:
             - Path=/api/products/**
           filters:
             - AuthenticationFilter
-       
-
+      
         # 3. Inventory Service Routes
         - id: inventory-service-route
           uri: ${service.url.inventory}
@@ -54,7 +53,6 @@ spring:
           filters:
             - AuthenticationFilter
         
-
         # 4. Order Service Routes
         - id: order-service-route
           uri: ${service.url.order}
@@ -63,14 +61,13 @@ spring:
           filters:
             - AuthenticationFilter
 
-        # 5. Delivery Service Routes
+       # 5. Delivery Service
         - id: delivery-service-route
           uri: ${service.url.delivery}
           predicates:
             - Path=/api/delivery/**
           filters:
             - AuthenticationFilter
-        
 
         # 6. Rating Service Routes
         - id: rating-service-route

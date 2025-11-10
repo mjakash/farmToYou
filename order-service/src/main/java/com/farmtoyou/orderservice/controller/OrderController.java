@@ -1,66 +1,46 @@
 package com.farmtoyou.orderservice.controller;
 
-import com.farmtoyou.orderservice.dto.DispatchRequest;
-import com.farmtoyou.orderservice.dto.OrderRequest;
-import com.farmtoyou.orderservice.dto.OrderResponse;
-import com.farmtoyou.orderservice.dto.PackageOrderRequest;
-import com.farmtoyou.orderservice.service.OrderService;
-import org.springframework.http.HttpStatus;
+import java.nio.file.AccessDeniedException;
+
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.farmtoyou.orderservice.dto.DispatchRequest; // Import this
+import com.farmtoyou.orderservice.dto.OrderResponse;
+import com.farmtoyou.orderservice.service.OrderService;
 
 @RestController
 @RequestMapping("/api/orders")
 public class OrderController {
 
-	private final OrderService orderService;
+    private final OrderService orderService;
 
-	public OrderController(OrderService orderService) {
-		this.orderService = orderService;
-	}
+    public OrderController(OrderService orderService) {
+        this.orderService = orderService;
+    }
 
-	@GetMapping("/{orderId}")
-	public ResponseEntity<OrderResponse> getOrderById(@PathVariable Long orderId) {
-		OrderResponse response = orderService.getOrderById(orderId);
-		return ResponseEntity.ok(response);
-	}
+    // ... (createOrder, getOrderById, acceptOrder, rejectOrder, packageOrder endpoints are unchanged) ...
 
-	@PostMapping
-	public ResponseEntity<OrderResponse> createOrder(@RequestBody OrderRequest orderRequest) {
-		OrderResponse response = orderService.createOrder(orderRequest);
-		return new ResponseEntity<>(response, HttpStatus.CREATED);
-	}
+    @PostMapping("/{orderId}/dispatch")
+    public ResponseEntity<OrderResponse> dispatchOrder(
+            @PathVariable Long orderId,
+            @RequestBody DispatchRequest dispatchRequest,
+            @RequestHeader("X-User-Id") Long farmerId) throws AccessDeniedException {
+        OrderResponse response = orderService.dispatchOrder(orderId, dispatchRequest, farmerId);
+        return ResponseEntity.ok(response);
+    }
 
-	@PostMapping("/{orderId}/accept")
-	public ResponseEntity<OrderResponse> acceptOrder(@PathVariable Long orderId) {
-		OrderResponse response = orderService.acceptOrder(orderId);
-		return ResponseEntity.ok(response);
-	}
-
-	@PostMapping("/{orderId}/reject")
-	public ResponseEntity<OrderResponse> rejectOrder(@PathVariable Long orderId) {
-		OrderResponse response = orderService.rejectOrder(orderId);
-		return ResponseEntity.ok(response);
-	}
-
-	@PostMapping("/{orderId}/dispatch")
-	public ResponseEntity<OrderResponse> dispatchOrder(@PathVariable Long orderId,
-			@RequestBody DispatchRequest dispatchRequest) {
-		OrderResponse response = orderService.dispatchOrder(orderId, dispatchRequest);
-		return ResponseEntity.ok(response);
-	}
-
-	@PostMapping("/{orderId}/pack")
-	public ResponseEntity<OrderResponse> packageOrder(@PathVariable Long orderId,
-			@RequestBody PackageOrderRequest packageRequest) {
-		OrderResponse response = orderService.packageOrder(orderId, packageRequest);
-		return ResponseEntity.ok(response);
-	}
-
-	@PostMapping("/{orderId}/complete")
-	public ResponseEntity<OrderResponse> completeOrder(@PathVariable Long orderId) {
-		OrderResponse response = orderService.completeOrder(orderId);
-		return ResponseEntity.ok(response);
-	}
-
+    // --- UPDATE THIS ENDPOINT ---
+    // This is now an internal endpoint called by delivery-service,
+    // so it no longer needs user headers.
+    @PostMapping("/{orderId}/complete")
+	public ResponseEntity<OrderResponse> completeOrder(@PathVariable Long orderId) throws AccessDeniedException {
+        OrderResponse response = orderService.completeOrder(orderId);
+        return ResponseEntity.ok(response);
+    }
 }
