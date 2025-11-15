@@ -21,9 +21,13 @@ import java.time.LocalDateTime; // Import this
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class OrderServiceImpl implements OrderService {
+
+	private static final Logger log = LoggerFactory.getLogger(OrderServiceImpl.class);
 
 	private final OrderRepository orderRepository;
 	private final WebClient.Builder webClientBuilder;
@@ -177,7 +181,9 @@ public class OrderServiceImpl implements OrderService {
 			// TODO: Trigger a refund process for the customer
 			// This could be publishing an event to a Kafka topic or calling a Refund
 			// service.
-			System.out.println("LOG: Initiating refund for PREPAID order: " + orderId);
+//			System.out.println("LOG: Initiating refund for PREPAID order: " + orderId);
+			log.warn("CRITICAL: Refund required for PREPAID order: {}. Amount: {}", order.getId(),
+					order.getTotalPrice());
 		}
 
 		OrderResponse response = mapToOrderResponse(savedOrder);
@@ -257,9 +263,12 @@ public class OrderServiceImpl implements OrderService {
 
 			if (order.getPaymentMethod() == PaymentMethod.PREPAID) {
 				// TODO: Trigger a refund
-				System.out.println("LOG: Order " + order.getId() + " expired. Initiating refund.");
+				log.warn("CRITICAL: Order {} EXPIRED. Refund required. Amount: {}", order.getId(),
+						order.getTotalPrice());
+//				System.out.println("LOG: Order " + order.getId() + " expired. Initiating refund.");
 			} else {
-				System.out.println("LOG: Order " + order.getId() + " expired.");
+				log.info("Order {} expired (COD). No refund needed.", order.getId());
+//				System.out.println("LOG: Order " + order.getId() + " expired.");
 			}
 		}
 	}
@@ -290,10 +299,10 @@ public class OrderServiceImpl implements OrderService {
 			throw new OrderValidationException("Order must be OUT_FOR_DELIVERY to be completed.");
 		}
 
-		if (order.getStatus() != OrderStatus.PACKAGED) {
-			throw new OrderValidationException(
-					"Order must be PACKAGED to be completed. Current status: " + order.getStatus());
-		}
+//		if (order.getStatus() != OrderStatus.PACKAGED) {
+//			throw new OrderValidationException(
+//					"Order must be PACKAGED to be completed. Current status: " + order.getStatus());
+//		}
 
 		order.setStatus(OrderStatus.DELIVERED);
 		Order savedOrder = orderRepository.save(order);

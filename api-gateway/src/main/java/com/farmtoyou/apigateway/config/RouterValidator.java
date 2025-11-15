@@ -16,6 +16,6 @@ public class RouterValidator {
 	// "/actuator/health"
 	);
 
-	public Predicate<ServerHttpRequest> isSecured = request -> publicApiEndpoints.stream()
+	public static final Predicate<ServerHttpRequest> isSecured = request -> publicApiEndpoints.stream()
 			.noneMatch(uri -> request.getURI().getPath().contains(uri));
 }

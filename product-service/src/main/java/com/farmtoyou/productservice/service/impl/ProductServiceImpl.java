@@ -10,6 +10,8 @@ import com.farmtoyou.productservice.entity.Product;
 import com.farmtoyou.productservice.repository.ProductRepository;
 import com.farmtoyou.productservice.service.ProductService;
 
+import jakarta.persistence.EntityNotFoundException;
+
 @Service
 public class ProductServiceImpl implements ProductService {
 
@@ -57,7 +59,8 @@ public class ProductServiceImpl implements ProductService {
 	@Override
 	public ProductResponse getProductById(Long productId) {
 	    Product product = productRepository.findById(productId)
-	            .orElseThrow(() -> new RuntimeException("Product not found")); // Use a real exception
+	            // Use EntityNotFoundException instead of RuntimeException
+	            .orElseThrow(() -> new EntityNotFoundException("Product not found with id: " + productId)); 
 	    return mapToProductResponse(product);
 	}
 
