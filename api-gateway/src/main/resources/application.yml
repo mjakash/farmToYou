@@ -15,7 +15,7 @@ service:
 
 # This secret must match the one in your user-service
 jwt:
-  secret: ${JWT_SECRET:Y2hhbmdlLXRoaXMtc2VjcmV0LWZvci1wcm9kdWN0aW9uLWVudmlyb25tZW50LWl0LXN0b3JlLXNlY3VyZWx5Cg==}
+  secret: ${JWT_SECRET}
 
 spring:
   # This sets the application name

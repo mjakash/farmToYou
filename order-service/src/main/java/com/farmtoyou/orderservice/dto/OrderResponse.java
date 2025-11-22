@@ -11,6 +11,7 @@ import lombok.Data;
 public class OrderResponse {
 	private Long id;
 	private Long customerId;
+	private Long farmerId;
 	private OrderStatus status;
 	private BigDecimal totalPrice;
 	private BigDecimal totalWeight;

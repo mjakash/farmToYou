@@ -1,28 +1,40 @@
 package com.farmtoyou.orderservice.service.impl;
 
-import com.farmtoyou.orderservice.dto.*;
+import java.math.BigDecimal;
+import java.nio.file.AccessDeniedException;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClient;
+
+import com.farmtoyou.orderservice.dto.DeliveryAssignmentRequest;
+import com.farmtoyou.orderservice.dto.DispatchRequest;
+import com.farmtoyou.orderservice.dto.InventoryRequest;
+import com.farmtoyou.orderservice.dto.InventoryResponse;
+import com.farmtoyou.orderservice.dto.OrderItemRequest;
+import com.farmtoyou.orderservice.dto.OrderRequest;
+import com.farmtoyou.orderservice.dto.OrderResponse;
+import com.farmtoyou.orderservice.dto.PackageOrderRequest;
+import com.farmtoyou.orderservice.dto.PaymentRequest;
+import com.farmtoyou.orderservice.dto.PaymentResponse;
+import com.farmtoyou.orderservice.dto.ProductResponse;
 import com.farmtoyou.orderservice.entity.Order;
 import com.farmtoyou.orderservice.entity.OrderItem;
-import com.farmtoyou.orderservice.entity.OrderStatus; // Import this
+import com.farmtoyou.orderservice.entity.OrderStatus;
 import com.farmtoyou.orderservice.entity.PaymentMethod;
 import com.farmtoyou.orderservice.exception.OrderValidationException;
 import com.farmtoyou.orderservice.repository.OrderRepository;
 import com.farmtoyou.orderservice.service.OrderService;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.scheduling.annotation.Scheduled; // Import this
-import reactor.core.publisher.Mono;
 
-import java.math.BigDecimal;
-import java.nio.file.AccessDeniedException;
-import java.time.LocalDateTime; // Import this
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import reactor.core.publisher.Mono;
 
 @Service
 public class OrderServiceImpl implements OrderService {
@@ -64,9 +76,10 @@ public class OrderServiceImpl implements OrderService {
 		BigDecimal totalWeight = BigDecimal.ZERO;
 		List<OrderItem> orderItems = new ArrayList<>();
 
-		// --- 1. VALIDATE AND CALCULATE ORDER ---
+		// --- 1. VALIDATE PRODUCT & RESERVE INVENTORY ---
 		for (OrderItemRequest itemReq : orderRequest.getItems()) {
 
+			// A. Validate Product
 			ProductResponse product = webClientBuilder.build().get()
 					.uri(productServiceUrl + "/" + itemReq.getProductId()).retrieve().bodyToMono(ProductResponse.class)
 					.block();
@@ -75,14 +88,23 @@ public class OrderServiceImpl implements OrderService {
 				throw new OrderValidationException("Product not found: " + itemReq.getProductId());
 			}
 
-			InventoryResponse inventory = webClientBuilder.build().get()
-					.uri(inventoryServiceUrl + "/" + itemReq.getProductId()).retrieve()
-					.bodyToMono(InventoryResponse.class).block();
+			// B. Reserve/Reduce Inventory (CRITICAL FIX)
+			try {
+				InventoryRequest reduceRequest = new InventoryRequest();
+				reduceRequest.setProductId(itemReq.getProductId());
+				reduceRequest.setQuantity(itemReq.getQuantity());
 
-			if (inventory == null || inventory.getQuantity().compareTo(itemReq.getQuantity()) < 0) {
-				throw new OrderValidationException("Not enough stock for product: " + product.getName());
+				// Call the new /reduce endpoint in Inventory Service
+				webClientBuilder.build().post().uri(inventoryServiceUrl + "/reduce")
+						.body(Mono.just(reduceRequest), InventoryRequest.class).retrieve()
+						.bodyToMono(InventoryResponse.class).block();
+			} catch (Exception e) {
+				log.error("Inventory reduction failed for product {}", product.getId(), e);
+				throw new OrderValidationException(
+						"Insufficient stock or inventory error for product: " + product.getName());
 			}
 
+			// C. Calculate Totals
 			totalPrice = totalPrice.add(product.getPrice().multiply(itemReq.getQuantity()));
 
 			if ("PER_KG".equals(product.getUnit())) {
@@ -91,6 +113,7 @@ public class OrderServiceImpl implements OrderService {
 				totalWeight = totalWeight.add(BigDecimal.ONE.multiply(itemReq.getQuantity()));
 			}
 
+			// D. Build Order Item
 			OrderItem orderItem = new OrderItem();
 			orderItem.setProductId(itemReq.getProductId());
 			orderItem.setQuantity(itemReq.getQuantity());
@@ -108,33 +131,51 @@ public class OrderServiceImpl implements OrderService {
 			throw new OrderValidationException("Order failed: Must be at least 5kg or Rs 1000.");
 		}
 
-		// --- 3. PROCESS PAYMENT (Updated Logic) ---
+		// --- 3. SAVE INITIAL ORDER (Fix for Ghost Orders) ---
+		newOrder.setStatus(OrderStatus.PENDING_PAYMENT);
+		Order savedOrder = orderRepository.save(newOrder);
+		log.info("Order {} created with status PENDING_PAYMENT", savedOrder.getId());
+
+		// --- 4. PROCESS PAYMENT ---
 		if (orderRequest.getPaymentMethod() == PaymentMethod.PREPAID) {
-			PaymentRequest paymentRequest = PaymentRequest.builder().orderId(0L) // Mock ID
-					.amount(totalPrice).paymentMethod("MOCK_PAYMENT").build();
+			try {
+				PaymentRequest paymentRequest = PaymentRequest.builder().orderId(savedOrder.getId()) // Use real ID
+						.amount(totalPrice).paymentMethod("MOCK_PAYMENT").build();
 
-			PaymentResponse paymentResponse = webClientBuilder.build().post().uri(paymentServiceUrl + "/process")
-					.body(Mono.just(paymentRequest), PaymentRequest.class).retrieve().bodyToMono(PaymentResponse.class)
-					.block();
+				PaymentResponse paymentResponse = webClientBuilder.build().post().uri(paymentServiceUrl + "/process")
+						.body(Mono.just(paymentRequest), PaymentRequest.class).retrieve()
+						.bodyToMono(PaymentResponse.class).block();
 
-			if (null == paymentResponse || !"APPROVED".equals(paymentResponse.getStatus())) {
-				throw new OrderValidationException("Payment failed or was declined.");
+				if (paymentResponse != null && "APPROVED".equals(paymentResponse.getStatus().toString())) {
+					savedOrder.setStatus(OrderStatus.PENDING_FARMER_ACCEPTANCE);
+				} else {
+					// Payment declined
+					savedOrder.setStatus(OrderStatus.CANCELLED);
+					orderRepository.save(savedOrder);
+					throw new OrderValidationException("Payment declined.");
+				}
+			} catch (Exception e) {
+				// Network error or other issue during payment
+				log.error("Payment processing error for Order {}", savedOrder.getId(), e);
+				savedOrder.setStatus(OrderStatus.CANCELLED);
+				orderRepository.save(savedOrder);
+				// In a real system, you might trigger an inventory compensation (rollback)
+				// transaction here
+				throw new OrderValidationException("Payment processing failed: " + e.getMessage());
 			}
 
-			newOrder.setStatus(OrderStatus.PENDING_FARMER_ACCEPTANCE);
-
 		} else if (orderRequest.getPaymentMethod() == PaymentMethod.CASH_ON_DELIVERY) {
-			newOrder.setStatus(OrderStatus.PENDING_FARMER_ACCEPTANCE);
+			savedOrder.setStatus(OrderStatus.PENDING_FARMER_ACCEPTANCE);
 		}
 
 		// Set the 2-hour acceptance window
-		newOrder.setAcceptanceDeadline(LocalDateTime.now().plusHours(2));
+		savedOrder.setAcceptanceDeadline(LocalDateTime.now().plusHours(2));
 
-		// --- 4. SAVE ORDER ---
-		Order savedOrder = orderRepository.save(newOrder);
+		// --- 5. SAVE FINAL STATUS ---
+		Order finalOrder = orderRepository.save(savedOrder);
 
-		// --- 5. RETURN RESPONSE ---
-		OrderResponse response = mapToOrderResponse(savedOrder);
+		// --- 6. RETURN RESPONSE ---
+		OrderResponse response = mapToOrderResponse(finalOrder);
 		response.setMessage("Order placed successfully! Waiting for farmer acceptance.");
 
 		return response;
@@ -146,7 +187,6 @@ public class OrderServiceImpl implements OrderService {
 		return mapToOrderResponse(order);
 	}
 
-	// --- NEW METHOD: ACCEPT ORDER ---
 	@Override
 	@Transactional
 	public OrderResponse acceptOrder(Long orderId) {
@@ -164,7 +204,6 @@ public class OrderServiceImpl implements OrderService {
 		return response;
 	}
 
-	// --- NEW METHOD: REJECT ORDER ---
 	@Override
 	@Transactional
 	public OrderResponse rejectOrder(Long orderId) {
@@ -178,13 +217,12 @@ public class OrderServiceImpl implements OrderService {
 		Order savedOrder = orderRepository.save(order);
 
 		if (order.getPaymentMethod() == PaymentMethod.PREPAID) {
-			// TODO: Trigger a refund process for the customer
-			// This could be publishing an event to a Kafka topic or calling a Refund
-			// service.
-//			System.out.println("LOG: Initiating refund for PREPAID order: " + orderId);
+			// TODO: Call Payment Service to initiate Refund
 			log.warn("CRITICAL: Refund required for PREPAID order: {}. Amount: {}", order.getId(),
 					order.getTotalPrice());
 		}
+
+		// TODO: Call Inventory Service to compensate (add back) stock
 
 		OrderResponse response = mapToOrderResponse(savedOrder);
 		response.setMessage("Order rejected by farmer.");
@@ -202,16 +240,15 @@ public class OrderServiceImpl implements OrderService {
 			throw new AccessDeniedException("You are not authorized to dispatch this order.");
 		}
 
-		// Logic: Must be packaged to be dispatched
 		if (order.getStatus() != OrderStatus.PACKAGED) {
 			throw new OrderValidationException("Order must be PACKAGED to be dispatched.");
 		}
 
 		// Call Delivery Service to create the assignment
-		DeliveryAssignmentRequest assignmentRequest = DeliveryAssignmentRequest.builder()
-				.deliveryPersonId(dispatchRequest.getDeliveryPersonId()).build();
-
 		try {
+			DeliveryAssignmentRequest assignmentRequest = DeliveryAssignmentRequest.builder()
+					.deliveryPersonId(dispatchRequest.getDeliveryPersonId()).build();
+
 			webClientBuilder.build().post().uri(deliveryServiceUrl + "/assign/" + orderId)
 					.body(Mono.just(assignmentRequest), DeliveryAssignmentRequest.class).retrieve()
 					.bodyToMono(Void.class).block();
@@ -234,8 +271,7 @@ public class OrderServiceImpl implements OrderService {
 		Order order = findOrderByIdOrThrow(orderId);
 
 		if (order.getStatus() != OrderStatus.FARMER_CONFIRMED) {
-			throw new OrderValidationException(
-					"Order must be in FARMER_CONFIRMED status to be packaged. Current status: " + order.getStatus());
+			throw new OrderValidationException("Order must be in FARMER_CONFIRMED status to be packaged.");
 		}
 
 		if (packageRequest.getImageUrls() == null || packageRequest.getImageUrls().isEmpty()) {
@@ -262,14 +298,12 @@ public class OrderServiceImpl implements OrderService {
 			orderRepository.save(order);
 
 			if (order.getPaymentMethod() == PaymentMethod.PREPAID) {
-				// TODO: Trigger a refund
 				log.warn("CRITICAL: Order {} EXPIRED. Refund required. Amount: {}", order.getId(),
 						order.getTotalPrice());
-//				System.out.println("LOG: Order " + order.getId() + " expired. Initiating refund.");
 			} else {
 				log.info("Order {} expired (COD). No refund needed.", order.getId());
-//				System.out.println("LOG: Order " + order.getId() + " expired.");
 			}
+			// TODO: Trigger inventory restock (compensation) here as well
 		}
 	}
 
@@ -282,6 +316,7 @@ public class OrderServiceImpl implements OrderService {
 		OrderResponse response = new OrderResponse();
 		response.setId(order.getId());
 		response.setCustomerId(order.getCustomerId());
+		response.setFarmerId(order.getFarmerId());
 		response.setStatus(order.getStatus());
 		response.setTotalPrice(order.getTotalPrice());
 		response.setTotalWeight(order.getTotalWeight());
@@ -299,24 +334,16 @@ public class OrderServiceImpl implements OrderService {
 			throw new OrderValidationException("Order must be OUT_FOR_DELIVERY to be completed.");
 		}
 
-//		if (order.getStatus() != OrderStatus.PACKAGED) {
-//			throw new OrderValidationException(
-//					"Order must be PACKAGED to be completed. Current status: " + order.getStatus());
-//		}
-
 		order.setStatus(OrderStatus.DELIVERED);
 		Order savedOrder = orderRepository.save(order);
 
-		// For COD, this is where we would also trigger a notification
-		// to the farmer that payment has been collected and will be settled.
 		if (order.getPaymentMethod() == PaymentMethod.CASH_ON_DELIVERY) {
-			System.out.println("LOG: Payment collected for COD order: " + orderId);
-			// In a real system, this would trigger a financial settlement event.
+			log.info("Payment collected for COD order: {}", orderId);
+			// In a real system, trigger financial settlement event here
 		}
 
 		OrderResponse response = mapToOrderResponse(savedOrder);
 		response.setMessage("Order marked as DELIVERED.");
 		return response;
 	}
-
 }
